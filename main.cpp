@@ -2,6 +2,7 @@
 #include "m3pi.h"
 #include "MSCFileSystem.h"
 #include "Parser.h"
+#include <string>
 
 m3pi m3pi;
 MSCFileSystem msc("usb");
@@ -69,38 +70,41 @@ void check() {
 }
 
 
-void PARSER::doThings(char* command, float* Vin, float* repCMD, float* leftmotor, float* rightmotor, float* OPspeed) {
-    if ( strcmp( command, "BACKWARD" ) == 0 ) {
-        rightmotor[0] = -speed;
-        leftmotor[0] = -speed;
-        OPspeed[0] = (0.079617* *Vin);
-    } else if ( strcmp( command, "LEFT" ) == 0 ) {
-        rightmotor[0] = speed;
-        leftmotor[0] = -speed;
-        OPspeed[0] = (0.0157 * (*Vin/10));
-    } else if ( strcmp( command, "RIGHT" ) == 0 ) {
-        rightmotor[0] = -1;
-        leftmotor[0] = speed;
-        OPspeed[0] = (0.0157 * (*Vin/10));
-    } else if ( strcmp( command, "STOP" ) == 0 ) {
-        rightmotor[0] = speed;
-        leftmotor[0] = speed;
-    } else if ( strcmp( command, "FORWARD" ) == 0 ) {
-        rightmotor[0] = speed;
-        leftmotor[0] = speed;
-        OPspeed[0] = ((0.079617)* *Vin);
-    } else if ( strcmp( command, "REPEAT" ) == 0) {
-        rightmotor[0] = 0;
-        leftmotor[0] = 0;
+#define K_FORWARD 0.079617
+#define K_TURN    (0.0157/10)
+
+void PARSER::doThings(const string &command, float Vin, float &repCMD, float &leftmotor, float &rightmotor, float &OPspeed) {
+    if (command ==  "backward") {
+        rightmotor = -speed;
+        leftmotor = -speed;
+        OPspeed = Vin * K_FORWARD;
+    } else if (command == "left" ) {
+        rightmotor = speed;
+        leftmotor = -speed;
+        OPspeed = Vin * K_TURN;
+    } else if ( command == "right" ) {
+        rightmotor = -1;
+        leftmotor = speed;
+        OPspeed = Vin * K_TURN;
+    } else if ( command == "STOP") {
+        rightmotor = speed;
+        leftmotor = speed;
+    } else if ( command == "FORWARD" ) {
+        rightmotor = speed;
+        leftmotor = speed;
+        OPspeed = Vin * K_FORWARD;
+    } else if ( command == "REPEAT" ) {
+        rightmotor = 0;
+        leftmotor = 0;
         //repCMD[0] = 1;
     } else  {
-        rightmotor[0] = 0;
-        leftmotor[0] = 0;
+        rightmotor = 0;
+        leftmotor = 0;
         m3pi.cls();
         m3pi.printf("ERR CMD");
-        m3pi.locate(0,1);
+        m3pi.locate(0, 1);
         m3pi.printf("INVALID");
-        pc.printf("BAD COMMAND, Line: %d", Line_Number);
+        pc.printf("BAD COMMAND %s, Line: %d", command, Line_Number);
     }
 }
 
@@ -112,12 +116,16 @@ int main() {
     FILE* CMD = fopen("/usb/Commands.txt", "r");
     while (!feof(CMD)) {
         // Read from the command file and sort commands from variables
-        fscanf(CMD, "%s %d\n", &CM, &var);
+        string command;
+        int var;
+        fscanf(CMD, "%s %d\n", &command, &var);
+        command = command.toLower();
+
         float repeat;
         float r, l;
         //void doThings(char* command, float* Vin, float* repCMD, float* leftmotor, float* rightmotor, float* OPspeed);
-        parser.doThings(CM,var,repeat,r,l,s);
-        if (( strcmp( CM, "[" ) == 0)) {
+        parser.doThings(command, var, r, l, s);
+        if (strcmp( CM, "[" ) == 0) {
             pch = strtok (CM,"1234567890 []");
             while (pch != NULL) {                   //count how many tokens there are
                 fscanf(CMD, "%s %d\n", &CM, &var);
